@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="activemq-all-5.8.0">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../IM/apache-activemq-5.8.0-bin/apache-activemq-5.8.0/activemq-all-5.8.0.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
