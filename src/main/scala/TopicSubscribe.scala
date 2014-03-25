@@ -9,7 +9,7 @@ import rx.lang.scala._
 object TopicSubscribe extends App {
   val user:String="user"
   val password:String="password123"
-  val subject:String= "DEERWALK.IMQ.PUBLISH.MEMINFO"
+  val subject:String= "TA.IMQ.PUBLISH.MEMINFO"
   val client:String=""
   val url="tcp://localhost:61616"
 
