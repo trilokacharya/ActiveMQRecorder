@@ -18,10 +18,17 @@ object TopicSubscriber // (val user:String,val password:String,val client:String
 
 }
 
+/**
+ * Class that subscribes to the given topic
+ * @param user
+ * @param password
+ * @param client
+ * @param subject
+ * @param url
+ */
 class TopicSubscriber(val user:String,val password:String,val client:String,val subject:String,val url:String)
 {
   var DEFAULT_URL:String = ActiveMQConnection.DEFAULT_BROKER_URL;
-  var observable:Observable[String]=null
 
   var connection:Connection = null
   var session:Session = null
@@ -38,6 +45,8 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
     session = connection.createSession(false,Session.CLIENT_ACKNOWLEDGE)
     consumer = session.createConsumer(session.createTopic(subject))
 
+    // The Message Listner gets the Observer so that it can invoke the onNext method of the Observer when a new message
+    // is received
     val observable:Observable[String]=Observable(
       observer =>{
         consumer.setMessageListener(new ListenAndObserve(observer))
@@ -60,6 +69,10 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
 }
 
 class ListenAndObserve(val observer:Observer[String]) extends MessageListener {
+  /**
+   * When a new message is received, call OnNext of the observer with the message. Assuming it's a TextMessage for now
+   * @param msg
+   */
   @Override
   def onMessage(msg:Message):Unit ={
     val messageText =msg.asInstanceOf[TextMessage].getText()

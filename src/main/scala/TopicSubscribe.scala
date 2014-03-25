@@ -5,25 +5,40 @@ package SubTopic
 
 import javax.jms.{Connection,Session}
 import rx.lang.scala._
+import java.io._
+import resource._
 
 object TopicSubscribe extends App {
   val user:String="user"
   val password:String="password123"
-  val subject:String= "DEERWALK.IMQ.PUBLISH.MEMINFO"
+  val subject:String= "TA.IMQ.PUBLISH.MEMINFO"
   val client:String=""
   val url="tcp://localhost:61616"
 
-  var subscriber:TopicSubscriber=null
-  try
+
+// Use automatic resource management in the ARM library to write messages out to a files
+  for( writer <- managed(new PrintWriter(new File("ActiveMQLog.txt")));
+     subscriber <- managed(TopicSubscriber(user,password,client,subject,url)))
   {
-    subscriber = TopicSubscriber(user,password,client,subject,url)
+
+    // get an observable
     val observable:Observable[String]=subscriber.CreateConnectionObservable
+
+    // Make observables more like linQ by calling toBlockingObservable. No need to specify the onNext and onComplete
+    // method in this case.
     observable.toBlockingObservable
-      .withFilter(s=>s.contains("a test"))
-      .foreach(x=>{println("Observed "+x)})
-  }finally
-  {
-    if(subscriber!=null) subscriber.close()
+      .withFilter(s=>s.contains("a test")) // keep only messages containing the phrase "a test"
+      .foreach(x=>{         // foreach ends when onComplete is called.
+                println("Observed "+x);
+                writer.println(x)
+        })
+
+    // alternatively, we could use the subscribe method and specify onNext, onError and onComplete methods explicitly
+    observable.subscribe(
+      (t:String) => { println("Observed "+t)},
+      (e:Throwable) => {println("Error:"+e.getMessage)},
+      ()=>{println("Done!")}
+    )
   }
 
 }
