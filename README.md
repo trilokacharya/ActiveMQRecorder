@@ -1,5 +1,4 @@
 JMSRecorder
 ===========
 
-Trying out rx.scala Observables. Aim is to create an Observable from an ActiveMQ Topic and write that to disk for now.
-Will add "replay" functionality so that this can act as a backup application for an ActiveMQ Topic
+Trying out rx.scala Observables. Currently creates an observable for an ActiveMQ topic and a subscriber that writes out the messages from the observable. Will eventually add "replay" functionality, so that this application can act as a backup for ActiveMQ messages.
