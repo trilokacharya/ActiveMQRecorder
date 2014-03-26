@@ -1,14 +1,14 @@
 /**
  * Created by tacharya on 2/20/14.
  */
-package SubTopic
+//package SubTopic
 
 import javax.jms.{Connection,Session}
 import rx.lang.scala._
 import java.io._
 import resource._
 
-object TopicSubscribe extends App {
+object TopicSubscriberUser extends App {
   val user:String="user"
   val password:String="password123"
   val subject:String= "TA.IMQ.PUBLISH.MEMINFO"
@@ -34,6 +34,8 @@ object TopicSubscribe extends App {
         })
 
     // alternatively, we could use the subscribe method and specify onNext, onError and onComplete methods explicitly
+    // However, this is not a blocking call, so now you need to have the main thread wait on some sort of signal that
+    // is fired when we're done receiving all messages (when onComplete is called for example)
     observable.subscribe(
       (t:String) => { println("Observed "+t)},
       (e:Throwable) => {println("Error:"+e.getMessage)},

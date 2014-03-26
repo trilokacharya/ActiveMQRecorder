@@ -2,14 +2,14 @@
  * Created by tacharya on 2/19/14.
  */
 
-package SubTopic
+//package SubTopic
 
 import javax.jms._
 import org.apache.activemq.{ActiveMQConnection, ActiveMQConnectionFactory}
 import rx.lang.scala._
 import java.lang.Throwable
 
-object TopicSubscriber // (val user:String,val password:String,val client:String,val subject:String,val url:String)
+object TopicSubscriber
 {
   def apply(user:String,password:String,client:String,subject:String,url:String=ActiveMQConnection.DEFAULT_BROKER_URL) =
   {
@@ -59,7 +59,8 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
 
 
   /**
-   * Close Consumer, Session and Connection. Ignore errors
+   * Close Consumer, Session and Connection. Ignore errors while closing. Called by Scala ARM when it's time to dispose
+   * of this instance
    */
   def close()={
     if(consumer!=null) try{consumer.close()} catch { case _ =>   }
@@ -71,13 +72,19 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
 class ListenAndObserve(val observer:Observer[String]) extends MessageListener {
   /**
    * When a new message is received, call OnNext of the observer with the message. Assuming it's a TextMessage for now
+   * If a message "END_TRANSMISSION" is received, consider that the end of all messages and signal the observable is completed
    * @param msg
    */
   @Override
   def onMessage(msg:Message):Unit ={
     val messageText =msg.asInstanceOf[TextMessage].getText()
-    //println(messageText)
+
+    if(messageText.equalsIgnoreCase("END_TRANSMISSION")){
+      observer.onCompleted()
+    }
+    else{
     observer.onNext(messageText)
+    }
   }
 }
 
