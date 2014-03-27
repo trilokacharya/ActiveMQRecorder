@@ -39,7 +39,7 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
   def CreateConnectionObservable:Observable[String]={
     val connectionFactory:ActiveMQConnectionFactory= new ActiveMQConnectionFactory(user, password,url )
     connection= connectionFactory.createConnection()
-    //connection.setClientID(client)
+    //connection.setClientID(client) - optional. Required for guaranteed delivery though
     connection.start()
 
     session = connection.createSession(false,Session.CLIENT_ACKNOWLEDGE)

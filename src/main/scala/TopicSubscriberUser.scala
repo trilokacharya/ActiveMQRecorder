@@ -7,6 +7,10 @@ import javax.jms.{Connection,Session}
 import rx.lang.scala._
 import java.io._
 import resource._
+import com.github.nscala_time.time.Imports._
+import org.json4s.native._
+import org.json4s._
+import org.json4s.JsonDSL._
 
 object TopicSubscriberUser extends App {
   val user:String="user"
@@ -24,13 +28,13 @@ object TopicSubscriberUser extends App {
     // get an observable
     val observable:Observable[String]=subscriber.CreateConnectionObservable
 
-    // Make observables more like linQ by calling toBlockingObservable. No need to specify the onNext and onComplete
+    // Make observables more like LINQ by calling toBlockingObservable. No need to specify the onNext and onComplete
     // method in this case.
     observable.toBlockingObservable
-      .withFilter(s=>s.contains("a test")) // keep only messages containing the phrase "a test"
+      .withFilter(s=>s.contains("a test")) // keep only messages containing the phrase "a test". Just here as an example
       .foreach(x=>{         // foreach ends when onComplete is called.
-                println("Observed "+x);
-                writer.println(x)
+                println("Observed "+x)
+                writer.println(wrapMessage(x))
         })
 
     // alternatively, we could use the subscribe method and specify onNext, onError and onComplete methods explicitly
@@ -41,6 +45,16 @@ object TopicSubscriberUser extends App {
       (e:Throwable) => {println("Error:"+e.getMessage)},
       ()=>{println("Done!")}
     )
+  }
+
+  /**
+   * Return a JSON string with a date with the message as the payload
+   * @param msg The message to use a payload
+   * @return
+   */
+  def wrapMessage(msg:String):String={
+    val obj = ("date"->DateTime.now.toString("yyyy-MM-dd HH:mm:ss")) ~("payload"->msg)
+    compactJson(renderJValue(obj))
   }
 
 }
