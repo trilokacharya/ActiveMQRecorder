@@ -9,7 +9,6 @@ import java.io._
 import resource._
 import com.github.nscala_time.time.Imports._
 import org.json4s.native._
-import org.json4s._
 import org.json4s.JsonDSL._
 
 object TopicSubscriberUser extends App {
@@ -18,6 +17,9 @@ object TopicSubscriberUser extends App {
   val subject:String= "TA.IMQ.PUBLISH.MEMINFO"
   val client:String=""
   val url="tcp://localhost:61616"
+  val dtFormat="yyyy-MM-dd HH:mm:ss"
+
+  val magicString = "%^#"
 
 
 // Use automatic resource management in the ARM library to write messages out to a files
@@ -53,8 +55,8 @@ object TopicSubscriberUser extends App {
    * @return
    */
   def wrapMessage(msg:String):String={
-    val obj = ("date"->DateTime.now.toString("yyyy-MM-dd HH:mm:ss")) ~("payload"->msg)
-    compactJson(renderJValue(obj))
+    val obj = ("date"->DateTime.now.toString(dtFormat)) ~("payload"->msg)
+    "%^#"+compactJson(renderJValue(obj))
   }
 
 }
