@@ -28,7 +28,7 @@ object TopicSubscriber
  */
 class TopicSubscriber(val user:String,val password:String,val client:String,val subject:String,val url:String)
 {
-  var DEFAULT_URL:String = ActiveMQConnection.DEFAULT_BROKER_URL;
+  var DEFAULT_URL:String = ActiveMQConnection.DEFAULT_BROKER_URL
 
   var connection:Connection = null
   var session:Session = null
@@ -63,9 +63,9 @@ class TopicSubscriber(val user:String,val password:String,val client:String,val 
    * of this instance
    */
   def close()={
-    if(consumer!=null) try{consumer.close()} catch { case _ =>   }
-    if(session!=null) try{session.close()} catch { case _ =>   }
-    if(connection!=null) try{connection.close()} catch { case _ =>   }
+    if(consumer!=null) try{consumer.close()} catch { case _: Throwable =>  }
+    if(session!=null) try{session.close()} catch { case _: Throwable =>   }
+    if(connection!=null) try{connection.close()} catch { case _:Throwable =>   }
   }
 }
 
@@ -77,7 +77,7 @@ class ListenAndObserve(val observer:Observer[String]) extends MessageListener {
    */
   @Override
   def onMessage(msg:Message):Unit ={
-    val messageText =msg.asInstanceOf[TextMessage].getText()
+    val messageText =msg.asInstanceOf[TextMessage].getText
 
     if(messageText.equalsIgnoreCase("END_TRANSMISSION")){
       observer.onCompleted()

@@ -27,7 +27,6 @@ class ReplayMessages(val threshold:Long=10000) {
   def readLineAndOldPos(raf:RandomAccessFile):(Option[String],Long)={
     val originalPos= raf.getFilePointer
     val line=raf.readLine()
-    //raf.seek(originalPos)
     if(line==null) (None,originalPos)
     else (Some(line),originalPos)
   }
@@ -55,7 +54,8 @@ class ReplayMessages(val threshold:Long=10000) {
             Iterator(parsed) ++ new MsgIterator(raf)
           }
           else{
-            sequentialSearchIter(raf.getFilePointer,date,raf)}
+            sequentialSearchIter(raf.getFilePointer,date,raf)
+          }
         }
       }
     }
@@ -75,15 +75,12 @@ class ReplayMessages(val threshold:Long=10000) {
     raf.seek(startPos)
     if(startPos >= raf.length) Stream.Empty
     else{
-      //val currPos = raf.getFilePointer
       val msgOption = getNextMsg(raf)
         msgOption match{
           case None=> Stream.Empty
           case Some(msg)=> {
             val parsed:MsgFormat=parsedMessage(msg)
             if(parsed.parsedDate >= date) {
-              //raf.seek(currPos)
-              //Some(raf)
               parsed#::getMsgStream(raf)
             }
             else{
@@ -144,7 +141,6 @@ class ReplayMessages(val threshold:Long=10000) {
           seekDateTimeIter(midPos,endPos,date,raf)
         }else if(parsed.parsedDate==date){
           Iterator(parsed) ++ new MsgIterator(raf)
-          //parsed #:: getMsgStream(raf)
         }
         else{
           seekDateTimeIter(startPos,midPos,date,raf)
@@ -168,7 +164,6 @@ class ReplayMessages(val threshold:Long=10000) {
       val parsed= parsedMessage(msg.get)
       raf.seek(0)
       if(parsed.parsedDate>=date){ //if the very beginning of the file is already past our start timestamp
-        //Some(raf)
         getMsgStream(raf)
       }
       else{
@@ -194,7 +189,6 @@ class ReplayMessages(val threshold:Long=10000) {
         if(parsed.parsedDate<date){
           seekDateTimeStream(midPos,endPos,date,raf)
         }else if(parsed.parsedDate==date){
-          //Some(raf)
           parsed #:: getMsgStream(raf)
         }
         else{
@@ -220,17 +214,14 @@ class ReplayMessages(val threshold:Long=10000) {
    * @return
    */
   def getNextMsg(raf:RandomAccessFile):Option[JValue]={
-    //var currRafPos = raf.getFilePointer
     var line = raf.readLine()
     if(line.startsWith(magicString)){
-      //raf.seek(currRafPos) //This is where the line starts
       parseLine(line)
     }
     else{
       if(raf.getFilePointer < raf.length) { // within file boundary
       //  currRafPos=raf.getFilePointer
         line = raf.readLine()
-     //   raf.seek(currRafPos) // put it back at the beginning of the line
         if(!line.startsWith(magicString)) throw new Exception("Invalid line. Doesn't start with "+magicString)
         parseLine(line)
       }
