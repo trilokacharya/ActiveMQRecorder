@@ -4,24 +4,18 @@
 package messageReplay
 
 import com.github.nscala_time.time.Imports._
-import java.io.BufferedReader
-import scala.io.Source
 import org.json4s.native._
 import org.json4s._
 import java.io.RandomAccessFile
-import java.text.MessageFormat
-import scala.util.Try
-import org.json4s.JsonAST.JValue
 import org.json4s.JValue
 import scala.annotation.tailrec
 
 
-class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
+class ReplayMessages(val threshold:Long=10000) {
 
   implicit val formats = org.json4s.DefaultFormats // required for extracting object out of JSON
   val dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
   val magicString = "%^#"
-  val threshold = 10000 // once we have narrowed down the desired date within 10k bytes, we look serially
 
   def parsedMessage(msg:JValue):MsgFormat= msg.extract[MsgFormat]
 
@@ -38,33 +32,75 @@ class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
     else (Some(line),originalPos)
   }
 
-  def readLine(raf:RandomAccessFile):Option[String]={
-    val line=raf.readLine()
-    if(line==null) None
-    else Some(line)
+
+  /**
+   * Reads through the file starting at the given start position and tries to find the position of the timestamp that is
+   * >= given timestamp
+   * @param startPos
+   * @param date
+   * @param raf
+   * @return
+   */
+  @tailrec
+  final def sequentialSearchIter(startPos:Long, date:DateTime, raf:RandomAccessFile):Iterator[MsgFormat] ={
+    raf.seek(startPos)
+    if(startPos >= raf.length) Iterator[MsgFormat]()
+    else{
+      val msgOption = getNextMsg(raf)
+      msgOption match{
+        case None=> Iterator[MsgFormat]()
+        case Some(msg)=> {
+          val parsed:MsgFormat=parsedMessage(msg)
+          if(parsed.parsedDate >= date) {
+            Iterator(parsed) ++ new MsgIterator(raf)
+          }
+          else{
+            sequentialSearchIter(raf.getFilePointer,date,raf)}
+        }
+      }
+    }
   }
 
 
+  /**
+   * Reads through the file starting at the given start position and tries to find the position of the timestamp that is
+   * >= given timestamp
+   * @param startPos
+   * @param date
+   * @param raf
+   * @return
+   */
   @tailrec
-  final def sequentialSearch(startPos:Long, date:DateTime, raf:RandomAccessFile):Option[RandomAccessFile] ={
+  final def sequentialSearchStream(startPos:Long, date:DateTime, raf:RandomAccessFile):Stream[MsgFormat] ={
     raf.seek(startPos)
-    if(startPos >= raf.length) None
+    if(startPos >= raf.length) Stream.Empty
     else{
-        val (line:Option[String],pos:Long) = readLineAndOldPos(raf)
-        if(line.isEmpty) None
-        parseLine(line.get) match{
-          case None=> throw new Throwable("Unparsable line encountered")
+      //val currPos = raf.getFilePointer
+      val msgOption = getNextMsg(raf)
+        msgOption match{
+          case None=> Stream.Empty
           case Some(msg)=> {
             val parsed:MsgFormat=parsedMessage(msg)
             if(parsed.parsedDate >= date) {
-              raf.seek(pos)
-              Some(raf)
+              //raf.seek(currPos)
+              //Some(raf)
+              parsed#::getMsgStream(raf)
             }
             else{
-            sequentialSearch(raf.getFilePointer,date,raf)}
+            sequentialSearchStream(raf.getFilePointer,date,raf)}
           }
         }
       }
+  }
+
+  /**
+   *Return a stream of messages starting from the given file pointer
+   */
+  def getMsgStream(raf:RandomAccessFile):Stream[MsgFormat]={
+    getNextMsg(raf) match {
+      case None => Stream.Empty
+      case Some(msg) => parsedMessage(msg) #:: getMsgStream(raf)
+    }
   }
 
   /**
@@ -73,29 +109,31 @@ class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
    * @param raf
    * @return
    */
-  def seekDateTime(date:DateTime,raf:RandomAccessFile):Option[RandomAccessFile]=
+  def seekDateTimeIter(date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]=
   {
+    raf.seek(0)
     val msg= getNextMsg(raf)
     if(msg.isDefined){
       val parsed= parsedMessage(msg.get)
       raf.seek(0)
       if(parsed.parsedDate>=date){ //if the very beginning of the file is already past our start timestamp
-        Some(raf)
+        new MsgIterator(raf)
       }
       else{
-        seekDateTime(0,raf.length(),date,raf)
+        seekDateTimeIter(0,raf.length(),date,raf)
       }
     }
-    else{ // something's wrong with the file
-      None
+    else{ // No more messages
+      Iterator[MsgFormat]()
     }
   }
 
-
-  // Find the position of the message that starts at the specified date, within the startPos and endPos boundaries
-  def seekDateTime(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Option[RandomAccessFile]={
-    if(endPos<=startPos) None // can't find the startdate
-    else if(endPos-startPos <= threshold) sequentialSearch(startPos,date,raf)
+  /**
+   *Find the position of the message that starts at the specified date, within the startPos and endPos boundaries
+   */
+  def seekDateTimeIter(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]={
+    if(endPos<=startPos) Iterator[MsgFormat]() // can't find the startdate
+    else if(endPos-startPos <= threshold) sequentialSearchIter(startPos,date,raf)
     else{
       val midPos=(startPos+endPos)/2
       raf.seek(midPos)
@@ -103,18 +141,75 @@ class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
       if(msg.isDefined){
         val parsed=parsedMessage(msg.get)
         if(parsed.parsedDate<date){
-          seekDateTime(midPos,endPos,date,raf)
+          seekDateTimeIter(midPos,endPos,date,raf)
         }else if(parsed.parsedDate==date){
-          Some(raf)
+          Iterator(parsed) ++ new MsgIterator(raf)
+          //parsed #:: getMsgStream(raf)
         }
         else{
-          seekDateTime(startPos,midPos,date,raf)
+          seekDateTimeIter(startPos,midPos,date,raf)
         }
       }
-      else None
+      else Iterator[MsgFormat]()
     }
   }
 
+  /**
+   * Given a date and a file, returns the position in the file which has a message with date >= given date
+   * @param date
+   * @param raf
+   * @return
+   */
+  def seekDateTimeStream(date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]=
+  {
+    raf.seek(0)
+    val msg= getNextMsg(raf)
+    if(msg.isDefined){
+      val parsed= parsedMessage(msg.get)
+      raf.seek(0)
+      if(parsed.parsedDate>=date){ //if the very beginning of the file is already past our start timestamp
+        //Some(raf)
+        getMsgStream(raf)
+      }
+      else{
+        seekDateTimeStream(0,raf.length(),date,raf)
+      }
+    }
+    else{ // No more messages
+      Stream.Empty
+    }
+  }
+
+
+  // Find the position of the message that starts at the specified date, within the startPos and endPos boundaries
+  def seekDateTimeStream(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]={
+    if(endPos<=startPos) Stream.Empty // can't find the startdate
+    else if(endPos-startPos <= threshold) sequentialSearchStream(startPos,date,raf)
+    else{
+      val midPos=(startPos+endPos)/2
+      raf.seek(midPos)
+      val msg = getNextMsg(raf)
+      if(msg.isDefined){
+        val parsed=parsedMessage(msg.get)
+        if(parsed.parsedDate<date){
+          seekDateTimeStream(midPos,endPos,date,raf)
+        }else if(parsed.parsedDate==date){
+          //Some(raf)
+          parsed #:: getMsgStream(raf)
+        }
+        else{
+          seekDateTimeStream(startPos,midPos,date,raf)
+        }
+      }
+      else Stream.Empty
+    }
+  }
+
+  /**
+   * Return the deserialized JSON value from the given string
+   * @param line
+   * @return
+   */
   def parseLine(line:String):Option[JValue]=
     Some(parseJson(line.substring(magicString.length)))
 
@@ -125,19 +220,17 @@ class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
    * @return
    */
   def getNextMsg(raf:RandomAccessFile):Option[JValue]={
-    var currRafPos = raf.getFilePointer
-
-
+    //var currRafPos = raf.getFilePointer
     var line = raf.readLine()
     if(line.startsWith(magicString)){
-      raf.seek(currRafPos) //This is where the line starts
+      //raf.seek(currRafPos) //This is where the line starts
       parseLine(line)
     }
     else{
       if(raf.getFilePointer < raf.length) { // within file boundary
-        currRafPos=raf.getFilePointer
+      //  currRafPos=raf.getFilePointer
         line = raf.readLine()
-        raf.seek(currRafPos) // put it back at the beginning of the line
+     //   raf.seek(currRafPos) // put it back at the beginning of the line
         if(!line.startsWith(magicString)) throw new Exception("Invalid line. Doesn't start with "+magicString)
         parseLine(line)
       }
@@ -156,5 +249,27 @@ class ReplayMessages(val startDate:DateTime, val endDate:DateTime) {
     if(parsedDate<date) -1
     else if(parsedDate>date) 1
     else 0 // equal
+  }
+
+
+  class MsgIterator(raf:RandomAccessFile) extends Iterator[MsgFormat]{
+    override def next(): MsgFormat = {
+      getNextMsg(raf) match {
+        case None => throw new NoSuchElementException
+        case Some(msg) => parsedMessage(msg)
+      }
+    }
+
+    var nextMsg:Option[MsgFormat] = None
+
+    override def hasNext: Boolean = {
+      val rafPos = raf.getFilePointer
+      val nxtMsg = getNextMsg(raf)
+      raf.seek(rafPos) // reset position // reset position // reset position // reset position
+      nxtMsg match {
+        case None => false
+        case _ => true
+      }
+    }
   }
 }
