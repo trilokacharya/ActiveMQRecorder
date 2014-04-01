@@ -1,7 +1,7 @@
 /**
- * Created by tacharya on 2/20/14.
+ * Uses the TopicSubscriber class's observable and writes out the text messages to a file
+ * @author tacharya
  */
-//package SubTopic
 
 import javax.jms.{Connection,Session}
 import rx.lang.scala._
@@ -10,6 +10,7 @@ import resource._
 import com.github.nscala_time.time.Imports._
 import org.json4s.native._
 import org.json4s.JsonDSL._
+import TopicSubscriber.TopicSubscriber
 
 object TopicSubscriberUser extends App {
   val user:String="user"
@@ -39,18 +40,23 @@ object TopicSubscriberUser extends App {
                 writer.println(wrapMessage(x))
         })
 
+
     // alternatively, we could use the subscribe method and specify onNext, onError and onComplete methods explicitly
     // However, this is not a blocking call, so now you need to have the main thread wait on some sort of signal that
     // is fired when we're done receiving all messages (when onComplete is called for example)
+    /*
     observable.subscribe(
       (t:String) => { println("Observed "+t)},
       (e:Throwable) => {println("Error:"+e.getMessage)},
       ()=>{println("Done!")}
     )
+    */
   }
 
   /**
-   * Return a JSON string with a date with the message as the payload
+   * Return a JSON string with a date with the message as the payload. Adds a "magic string" to the beginning to identify
+   * the beginning of the line. Useful for the ReplayMessage class when trying to figure out whether the location is the
+   * beginning.
    * @param msg The message to use a payload
    * @return
    */

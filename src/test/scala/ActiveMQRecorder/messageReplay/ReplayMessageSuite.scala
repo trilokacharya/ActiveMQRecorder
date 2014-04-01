@@ -1,4 +1,4 @@
-package messageReplay
+package ActiveMQRecorder.messageReplay
 
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
@@ -6,6 +6,7 @@ import org.scalatest.junit.JUnitRunner
 import java.io.RandomAccessFile
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
+import ActiveMQRecorder.MessageReplay.ReplayMessages
 
 /**
  * Created by trilok on 3/28/14.
@@ -44,7 +45,6 @@ class ReplayMessageSuite extends FunSuite {
     }
 
   }
-
   test("sequentialfindStream"){
     val toFind="2014-03-28 19:13:08"
     val dFormat:DateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")

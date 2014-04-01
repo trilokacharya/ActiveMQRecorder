@@ -1,7 +1,9 @@
 /**
- * Created by trilok on 3/26/14.
+ * Takes a file in the format written out by TopicSubscriberUser, finds messages starting at a particular timestamp.
+ * Returns an Iterator or a Stream. Better to use Iterator for better memory usage. Streams are there just as a test
+ * @author tacharya
  */
-package messageReplay
+package ActiveMQRecorder.MessageReplay
 
 import com.github.nscala_time.time.Imports._
 import org.json4s.native._
@@ -9,6 +11,7 @@ import org.json4s._
 import java.io.RandomAccessFile
 import org.json4s.JValue
 import scala.annotation.tailrec
+import ActiveMQRecorder.MessageReplay.messageReplay.MsgFormat
 
 
 class ReplayMessages(val threshold:Long=10000) {
@@ -17,20 +20,8 @@ class ReplayMessages(val threshold:Long=10000) {
   val dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
   val magicString = "%^#"
 
+  // Parses a JSON file and returns a MsgFormat object
   def parsedMessage(msg:JValue):MsgFormat= msg.extract[MsgFormat]
-
-  /**
-   * Read a line from a RandomAccessFile object and also return it's original file pointer position
-   * @param raf
-   * @return
-   */
-  def readLineAndOldPos(raf:RandomAccessFile):(Option[String],Long)={
-    val originalPos= raf.getFilePointer
-    val line=raf.readLine()
-    if(line==null) (None,originalPos)
-    else (Some(line),originalPos)
-  }
-
 
   /**
    * Reads through the file starting at the given start position and tries to find the position of the timestamp that is
@@ -93,7 +84,7 @@ class ReplayMessages(val threshold:Long=10000) {
   /**
    *Return a stream of messages starting from the given file pointer
    */
-  def getMsgStream(raf:RandomAccessFile):Stream[MsgFormat]={
+  final def getMsgStream(raf:RandomAccessFile):Stream[MsgFormat]={
     getNextMsg(raf) match {
       case None => Stream.Empty
       case Some(msg) => parsedMessage(msg) #:: getMsgStream(raf)
@@ -106,7 +97,7 @@ class ReplayMessages(val threshold:Long=10000) {
    * @param raf
    * @return
    */
-  def seekDateTimeIter(date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]=
+ final def seekDateTimeIter(date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]=
   {
     raf.seek(0)
     val msg= getNextMsg(raf)
@@ -128,7 +119,7 @@ class ReplayMessages(val threshold:Long=10000) {
   /**
    *Find the position of the message that starts at the specified date, within the startPos and endPos boundaries
    */
-  def seekDateTimeIter(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]={
+ private def seekDateTimeIter(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Iterator[MsgFormat]={
     if(endPos<=startPos) Iterator[MsgFormat]() // can't find the startdate
     else if(endPos-startPos <= threshold) sequentialSearchIter(startPos,date,raf)
     else{
@@ -156,7 +147,7 @@ class ReplayMessages(val threshold:Long=10000) {
    * @param raf
    * @return
    */
-  def seekDateTimeStream(date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]=
+  final def seekDateTimeStream(date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]=
   {
     raf.seek(0)
     val msg= getNextMsg(raf)
@@ -177,7 +168,7 @@ class ReplayMessages(val threshold:Long=10000) {
 
 
   // Find the position of the message that starts at the specified date, within the startPos and endPos boundaries
-  def seekDateTimeStream(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]={
+  final def seekDateTimeStream(startPos:Long,endPos:Long,date:DateTime,raf:RandomAccessFile):Stream[MsgFormat]={
     if(endPos<=startPos) Stream.Empty // can't find the startdate
     else if(endPos-startPos <= threshold) sequentialSearchStream(startPos,date,raf)
     else{
@@ -204,7 +195,7 @@ class ReplayMessages(val threshold:Long=10000) {
    * @param line
    * @return
    */
-  def parseLine(line:String):Option[JValue]=
+  final def parseLine(line:String):Option[JValue]=
     Some(parseJson(line.substring(magicString.length)))
 
   /**
@@ -213,7 +204,7 @@ class ReplayMessages(val threshold:Long=10000) {
    * @param raf
    * @return
    */
-  def getNextMsg(raf:RandomAccessFile):Option[JValue]={
+  final def getNextMsg(raf:RandomAccessFile):Option[JValue]={
     var line = raf.readLine()
     if(line.startsWith(magicString)){
       parseLine(line)
@@ -235,7 +226,7 @@ class ReplayMessages(val threshold:Long=10000) {
    * @param date
    * @return
    */
-  def compareDate(dtStr:String,date:DateTime ):Int={
+  final def compareDate(dtStr:String,date:DateTime ):Int={
     val parsedDate=dateFormatter.parseDateTime(dtStr)
     if(parsedDate<date) -1
     else if(parsedDate>date) 1

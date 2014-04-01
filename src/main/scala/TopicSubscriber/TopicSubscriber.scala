@@ -1,8 +1,9 @@
-/**
- * Created by tacharya on 2/19/14.
- */
+package TopicSubscriber
 
-//package SubTopic
+/**
+ * Creates a Topic Subscriber  that returns an observable. Listens for TextMessages
+ * @author tacharya
+ */
 
 import javax.jms._
 import org.apache.activemq.{ActiveMQConnection, ActiveMQConnectionFactory}
