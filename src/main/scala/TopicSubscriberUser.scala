@@ -1,5 +1,5 @@
 /**
- * Uses the TopicSubscriber class's observable and writes out the text messages to a file
+ * Uses the ActiveMQRecorder.TopicSubscriber class's observable and writes out the text messages to a file
  * @author tacharya
  */
 
