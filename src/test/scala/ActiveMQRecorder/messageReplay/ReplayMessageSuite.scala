@@ -6,7 +6,7 @@ import org.scalatest.junit.JUnitRunner
 import java.io.RandomAccessFile
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
-import ActiveMQRecorder.MessageReplay.ReplayMessages
+import ActiveMQRecorder.MessageReplay.FindMessages
 
 /**
  * Created by trilok on 3/28/14.
@@ -26,7 +26,7 @@ class ReplayMessageSuite extends FunSuite {
     var dateToFind =  DateTime.parse(toFind,dFormat)
 
     try{
-      val replay = new ReplayMessages(200L) // threshold is 200 bytes within target
+      val replay = new FindMessages(200L) // threshold is 200 bytes within target
       val msgStream1=replay.seekDateTimeStream(dateToFind,raf)
       assert(!msgStream1.isEmpty)
       val msg= msgStream1.head
@@ -50,7 +50,7 @@ class ReplayMessageSuite extends FunSuite {
     val dFormat:DateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
     val dateToFind =  DateTime.parse(toFind,dFormat)
     val raf=new RandomAccessFile(filePath,"r")
-    val replay = new ReplayMessages()
+    val replay = new FindMessages()
     try{
       // find date that exists
       val msgStream = replay.sequentialSearchStream(0,dateToFind,raf)
@@ -77,7 +77,7 @@ class ReplayMessageSuite extends FunSuite {
     var dateToFind =  DateTime.parse(toFind,dFormat)
 
     try{
-      val replay = new ReplayMessages(200L) // threshold is 200 bytes within target
+      val replay = new FindMessages(200L) // threshold is 200 bytes within target
       val msgIter1=replay.seekDateTimeIter(dateToFind,raf)
       assert(!msgIter1.isEmpty)
       val msg= msgIter1.next
@@ -101,7 +101,7 @@ class ReplayMessageSuite extends FunSuite {
     val dFormat:DateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
     val dateToFind =  DateTime.parse(toFind,dFormat)
     val raf=new RandomAccessFile(filePath,"r")
-    val replay = new ReplayMessages()
+    val replay = new FindMessages()
     try{
       // find date that exists
       val msgIter1 = replay.sequentialSearchIter(0,dateToFind,raf)

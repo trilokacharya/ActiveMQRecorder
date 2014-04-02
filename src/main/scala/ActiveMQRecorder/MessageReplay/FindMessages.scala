@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 import ActiveMQRecorder.MessageReplay.messageReplay.MsgFormat
 
 
-class ReplayMessages(val threshold:Long=10000) {
+class FindMessages(val threshold:Long=10000) {
 
   implicit val formats = org.json4s.DefaultFormats // required for extracting object out of JSON
   val dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
