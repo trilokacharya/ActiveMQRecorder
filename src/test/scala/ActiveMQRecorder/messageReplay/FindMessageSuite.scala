@@ -13,7 +13,7 @@ import ActiveMQRecorder.MessageReplay.FindMessages
  */
 
 @RunWith(classOf[JUnitRunner])
-class ReplayMessageSuite extends FunSuite {
+class FindMessageSuite extends FunSuite {
 
   implicit val formats = org.json4s.DefaultFormats // required for extracting object out of JSON
 
